@@ -1,100 +1,113 @@
-var express = require('express');
+var express = require("express");
 var router = express.Router();
-var models = require('../models');
-var { Response } = require('../helpers/utils')
-const { Op } = require('sequelize');
+var models = require("../models");
+const { Op } = require("sequelize");
+var { Response } = require("../helpers/util.js");
 
-/* GET users listing. */
-router.get('/', async function (req, res, next) {
-  try {
-    const { name, phone } = req.query
+router
+  .route("/phonebooks")
+  /* GET phonebook listing. */
+  .get(async function (req, res) {
+    try {
+      const { name, phone, mode, page } = req.query;
+      
+      let params = {};
+      let op = mode === "or" ? Op.or : Op.and;
 
-    const page = parseInt(req.query.page) || 1
-    const limit = 10
-    const offset = (page - 1) * limit
+      const limit = 5;
+      const offset = (page - 1) * limit;
 
-    const total = await models.User.count()
-    const pages = Math.ceil(total / limit)
+      if (name || phone) {
+        params[op] = {};
+      }
 
-    if (name && phone) {
-      const { count, rows } = await models.User.findAndCountAll({
-        where:
-        {
-          [Op.and]:
-            [
-              { name: { [Op.like]: '%' + name + '%' } },
-              { phone: { [Op.like]: '%' + phone + '%' } }
-            ]
-        }, limit: limit, offset: offset
-      })
-      res.json(new Response({ users : rows, totalCount: count, page, pages: pages, offset }))
+      if (name) {
+        params[op]["name"] = {
+          [Op.iLike]: `%${name}%`,
+        };
+      }
+
+      if (phone) {
+        params[op]["phone"] = {
+          [Op.iLike]: `%${phone}%`,
+        };
+      }
+
+      const totalCount = await models.Phonebook.count();
+      const { count, rows } = await models.Phonebook.findAndCountAll({
+        where: params,
+        limit,
+        offset,
+        order: [["id", "DESC"]],
+      });
+
+      const pages = Math.ceil(count / limit);
+
+      res.send(
+        new Response({
+          totalCount,
+          rowCount: count,
+          page: Number(page),
+          pages,
+          contacts: rows,
+        })
+      );
+    } catch (error) {
+      res.status(500).json(new Response(error, false));
     }
-    else if (name) {
-      const  { count, rows } = await models.User.findAndCountAll({
-        where:
-          { name: { [Op.like]: '%' + name + '%' } }
-        , limit: limit, offset: offset
-      })
-      res.json(new Response({ users : rows, totalCount: count, page, pages: pages, offset }))
+  })
+  /* Create a phonebook. */
+  .post(async function (req, res) {
+    try {
+      const phonebook = await models.Phonebook.create(req.body);
+      res.send(new Response(phonebook));
+    } catch (error) {
+      res.status(500).json(new Response(error, false));
     }
-    else if (phone) {
-      const  { count, rows } = await models.User.findAndCountAll({
-        where:
-          { phone: { [Op.like]: '%' + phone + '%' } }
-        , limit: limit, offset: offset
-      })
-      res.json(new Response({ users : rows, totalCount: count, page, pages: pages, offset }))
-    }
-    else {
-      const  { count, rows } = await models.User.findAndCountAll({
-        order: [['id', 'DESC']]
-        , limit: limit, offset: offset
-      })
-      res.json(new Response({ users : rows, totalCount: count, page, pages: pages, offset }))
-    }
-  } catch (err) {
-    res.status(500).json(new Response(err, false))
-  }
-});
+  });
 
-router.post('/', async function (req, res, next) {
-  try {
-    const user = await models.User.create(req.body)
-    res.json(new Response(user))
-  } catch (err) {
-    res.status(500).json(new Response(err, false))
-  }
-});
-
-router.put('/:id', async function (req, res, next) {
-  try {
-    const user = await models.User.update(req.body,
-      {
-        where:
-        {
-          id: req.params.id
+router
+  .route("/phonebooks/:id")
+  /* Update a phonebook. */
+  .get(async function (req, res) {
+    try {
+      const phonebook = await models.Phonebook.findAll({
+        where: {
+          id: req.params.id,
+        },
+      });
+      res.send(new Response(phonebook));
+    } catch (error) {
+      res.status(500).json(new Response(error, false));
+    }
+  })
+  /* Update a phonebook. */
+  .put(async function (req, res) {
+    try {
+      const phonebook = await models.Phonebook.update(req.body, {
+        where: {
+          id: req.params.id,
         },
         returning: true,
-        plain: true
-      })
-    res.json(new Response(user[1]))
-  } catch (err) {
-    res.status(500).json(new Response(err, false))
-  }
-});
-
-router.delete('/:id', async function (req, res, next) {
-  try {
-    const user = await models.User.destroy({
-      where:
-      {
-        id: req.params.id
-      }
-    })
-    res.json(new Response(user))
-  } catch (err) {
-    res.status(500).json(new Response(err, false))
-  }
-});
+        plain: true,
+      });
+      res.send(new Response(phonebook[1]));
+    } catch (error) {
+      res.status(500).json(new Response(error, false));
+    }
+  })
+  /* Delete a phonebook. */
+  .delete(async function (req, res) {
+    try {
+      const phonebook = await models.Phonebook.destroy({
+        where: {
+          id: req.params.id,
+        },
+      });
+      res.send(new Response(phonebook));
+    } catch (error) {
+      res.status(500).json(new Response(error, false));
+    }
+  });
 
 module.exports = router;

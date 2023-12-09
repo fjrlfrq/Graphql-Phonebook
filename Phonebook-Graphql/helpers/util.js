@@ -1,10 +1,10 @@
 class Response {
-    constructor(data, success = true){
-        this.data = data
-        this.success = success
-    }
+  constructor(data, success = true) {
+    this.data = data
+    this.success = success
   }
-  
-  module.exports = {
-    Response
-  }
+}
+
+module.exports = {
+  Response
+}

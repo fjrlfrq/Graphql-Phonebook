@@ -4,12 +4,14 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var { graphqlHTTP } = require("express-graphql");
 var { schema } = require("./schema/schema.gql");
-var { root } = require("./resolvers/resolvers.js")
+var { resolvers } = require("./resolvers/resolvers.js")
+var cors = require("cors");
 
 var indexRouter = require('./routes/index');
 
 var app = express();
 
+app.use(cors());
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -21,8 +23,8 @@ app.use('/', indexRouter);
 app.use(
     "/graphql",
     graphqlHTTP({
-      schema: schema,
-      rootValue: root,
+      schema,
+      rootValue: resolvers,
       graphiql: true,
     })
   )
